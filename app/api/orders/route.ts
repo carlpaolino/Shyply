@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { PrismaClient, CartItem, Product } from "@prisma/client"
+import { PrismaClient } from "@/app/generated/prisma"
+import type { CartItem, Product } from "@/app/generated/prisma"
 import Stripe from "stripe"
 
 const prisma = new PrismaClient()
