@@ -42,6 +42,7 @@ export async function GET(
             rating: true,
           },
         },
+        orderItems: true,
       },
     })
 

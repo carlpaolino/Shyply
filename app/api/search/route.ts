@@ -15,21 +15,27 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "12")
 
-    const where = {
-      AND: [
-        query
-          ? {
-              OR: [
-                { title: { contains: query, mode: "insensitive" } },
-                { description: { contains: query, mode: "insensitive" } },
-              ],
-            }
-          : {},
-        category ? { categories: { some: { name: category } } } : {},
-        minPrice ? { price: { gte: parseInt(minPrice) } } : {},
-        maxPrice ? { price: { lte: parseInt(maxPrice) } } : {},
-      ],
+    const andFilters = []
+
+    if (query) {
+      andFilters.push({
+        OR: [
+          { title: { contains: query, mode: "insensitive" as const } },
+          { description: { contains: query, mode: "insensitive" as const } },
+        ],
+      })
     }
+    if (category) {
+      andFilters.push({ categories: { some: { name: category } } })
+    }
+    if (minPrice) {
+      andFilters.push({ price: { gte: parseInt(minPrice) } })
+    }
+    if (maxPrice) {
+      andFilters.push({ price: { lte: parseInt(maxPrice) } })
+    }
+
+    const where = andFilters.length > 0 ? { AND: andFilters } : {}
 
     const [products, total] = await Promise.all([
       prisma.product.findMany({

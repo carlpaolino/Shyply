@@ -4,6 +4,9 @@ import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
+const validStatuses = ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"] as const;
+type OrderStatus = typeof validStatuses[number];
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession()
@@ -15,7 +18,8 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const status = searchParams.get("status")
+    const statusParam = searchParams.get("status")
+    const status = validStatuses.includes(statusParam as OrderStatus) ? statusParam as OrderStatus : undefined
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "10")
 

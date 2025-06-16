@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { PrismaClient } from "@/app/generated/prisma"
-import type { CartItem, Product } from "@/app/generated/prisma"
+import { PrismaClient } from "@prisma/client"
 import Stripe from "stripe"
 
 const prisma = new PrismaClient()
@@ -75,7 +74,7 @@ export async function POST(request: Request) {
     }
 
     const total = cart.items.reduce(
-      (sum: number, item: CartItem & { product: Product }) =>
+      (sum: number, item: { product: { price: number }, quantity: number }) =>
         sum + item.product.price * item.quantity,
       0
     )
@@ -95,7 +94,7 @@ export async function POST(request: Request) {
         userId: session.user.id,
         total,
         items: {
-          create: cart.items.map((item: CartItem & { product: Product }) => ({
+          create: cart.items.map((item: { productId: string, quantity: number, product: { price: number } }) => ({
             productId: item.productId,
             quantity: item.quantity,
             price: item.product.price,
