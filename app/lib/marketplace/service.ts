@@ -1,77 +1,69 @@
 import { MarketplaceProduct, MarketplaceSearchParams, MarketplaceSearchResponse } from './types';
 
 export class MarketplaceService {
-  private apiKey: string;
-  private apiSecret: string;
-  private partnerTag: string;
   private baseUrl: string;
 
   constructor() {
-    this.apiKey = process.env.MARKETPLACE_API_KEY || '';
-    this.apiSecret = process.env.MARKETPLACE_API_SECRET || '';
-    this.partnerTag = process.env.MARKETPLACE_PARTNER_TAG || '';
-    this.baseUrl = 'https://webservices.amazon.com/paapi5/searchitems';
+    this.baseUrl = 'https://fakestoreapi.com/products';
   }
 
   async searchProducts(params: MarketplaceSearchParams): Promise<MarketplaceSearchResponse> {
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': this.apiKey,
-        },
-        body: JSON.stringify({
-          Keywords: params.keywords,
-          SearchIndex: params.category || 'All',
-          ItemCount: 10,
-          Resources: [
-            'ItemInfo.Title',
-            'ItemInfo.Features',
-            'ItemInfo.ProductInfo',
-            'Offers.Listings.Price',
-            'Images.Primary.Large',
-            'CustomerReviews',
-          ],
-          PartnerTag: this.partnerTag,
-          PartnerType: 'Associates',
-          Marketplace: 'www.amazon.com',
-        }),
-      });
+    // Fake Store API does not support search, so we fetch all and filter client-side
+    const response = await fetch(this.baseUrl);
+    if (!response.ok) throw new Error('Failed to fetch products from Fake Store API');
+    const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch products from marketplace');
-      }
+    // Filter by keywords (title/description)
+    let products = data.filter((item: any) => {
+      if (!params.keywords) return true;
+      const keyword = params.keywords.toLowerCase();
+      return (
+        item.title.toLowerCase().includes(keyword) ||
+        item.description.toLowerCase().includes(keyword)
+      );
+    });
 
-      const data = await response.json();
-      return this.transformResponse(data, params.page || 1);
-    } catch (error) {
-      console.error('Error searching marketplace products:', error);
-      throw error;
+    // Filter by category
+    if (params.category) {
+      products = products.filter((item: any) => item.category === params.category);
     }
-  }
 
-  private transformResponse(data: any, page: number): MarketplaceSearchResponse {
-    const products = data.SearchResult.Items.map((item: any) => ({
-      asin: item.ASIN,
-      title: item.ItemInfo.Title.DisplayValue,
-      description: item.ItemInfo.Features?.DisplayValue?.join(' ') || '',
-      price: item.Offers.Listings[0].Price.Amount,
-      currency: item.Offers.Listings[0].Price.Currency,
-      imageUrl: item.Images.Primary.Large.URL,
-      brand: item.ItemInfo.ProductInfo.Brand?.DisplayValue || '',
-      category: item.ItemInfo.ProductInfo.ProductType?.DisplayValue || '',
-      rating: item.CustomerReviews?.StarRating?.DisplayValue || 0,
-      reviewCount: item.CustomerReviews?.Count?.DisplayValue || 0,
-      availability: item.Offers.Listings[0].Availability?.Type === 'Now',
-      marketplaceId: 'amazon',
+    // Filter by price
+    if (typeof params.minPrice === 'number') {
+      products = products.filter((item: any) => item.price >= params.minPrice!);
+    }
+    if (typeof params.maxPrice === 'number') {
+      products = products.filter((item: any) => item.price <= params.maxPrice!);
+    }
+
+    // Pagination
+    const page = params.page || 1;
+    const pageSize = 10;
+    const totalResults = products.length;
+    const totalPages = Math.ceil(totalResults / pageSize);
+    const paginated = products.slice((page - 1) * pageSize, page * pageSize);
+
+    // Map to MarketplaceProduct type
+    const mapped: MarketplaceProduct[] = paginated.map((item: any) => ({
+      asin: String(item.id),
+      title: item.title,
+      description: item.description,
+      price: item.price,
+      currency: 'USD',
+      imageUrl: item.image,
+      brand: item.category, // Fake Store API does not have brand, use category
+      category: item.category,
+      rating: item.rating?.rate || 0,
+      reviewCount: item.rating?.count || 0,
+      availability: true,
+      marketplaceId: 'fakestore',
     }));
 
     return {
-      products,
-      totalResults: data.SearchResult.TotalResultCount,
+      products: mapped,
+      totalResults,
       currentPage: page,
-      totalPages: Math.ceil(data.SearchResult.TotalResultCount / 10),
+      totalPages,
     };
   }
 } 

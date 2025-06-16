@@ -22,22 +22,18 @@ export default function MarketplaceProductGrid({
 
   useEffect(() => {
     const fetchProducts = async () => {
-      if (!searchParams.keywords) return;
-      
+      // Always fetch products, even if no keywords are provided
       setLoading(true);
       setError(null);
-      
       try {
         const queryParams = new URLSearchParams({
-          keywords: searchParams.keywords,
+          keywords: searchParams.keywords || '',
           ...(searchParams.category && { category: searchParams.category }),
           ...(searchParams.minPrice && { minPrice: searchParams.minPrice.toString() }),
           ...(searchParams.maxPrice && { maxPrice: searchParams.maxPrice.toString() }),
         });
-
         const response = await fetch(`/api/marketplace/search?${queryParams}`);
         if (!response.ok) throw new Error('Failed to fetch products');
-        
         const data = await response.json();
         setProducts(data.products);
       } catch (err) {
@@ -46,7 +42,6 @@ export default function MarketplaceProductGrid({
         setLoading(false);
       }
     };
-
     fetchProducts();
   }, [searchParams]);
 
